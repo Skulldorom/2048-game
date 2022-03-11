@@ -1,4 +1,4 @@
-import { Box } from "@mui/material";
+import { Box, Button, Typography } from "@mui/material";
 import React from "react";
 import "./Board.css";
 
@@ -71,6 +71,22 @@ export default function Board(props) {
     }
   }, [cellArray, gameStart]);
 
+  const RestartGame = () => {
+    setGameOver(false);
+    setScore(0);
+    const valueArray = [];
+    for (let i = 0; i < gridSize * gridSize; i++) {
+      valueArray.push({
+        indexValue: i,
+        value: 0,
+        x: i % gridSize,
+        y: Math.floor(i / gridSize),
+      });
+    }
+    setCellArray(valueArray);
+    setGameStart(true);
+  };
+
   const emptyCells = cellArray.filter((cell) => cell.value === 0);
 
   const randomEmptyCell = () => {
@@ -79,18 +95,18 @@ export default function Board(props) {
   };
 
   const cellsByColumn = () => {
-    return cellArray.reduce((acc, cell) => {
-      acc[cell.x] = acc[cell.x] || [];
-      acc[cell.x][cell.y] = cell;
-      return acc;
+    return cellArray.reduce((cellGrid, cell) => {
+      cellGrid[cell.x] = cellGrid[cell.x] || [];
+      cellGrid[cell.x][cell.y] = cell;
+      return cellGrid;
     }, []);
   };
 
   const cellsByRow = () => {
-    return cellArray.reduce((acc, cell) => {
-      acc[cell.y] = acc[cell.y] || [];
-      acc[cell.y][cell.x] = cell;
-      return acc;
+    return cellArray.reduce((cellGrid, cell) => {
+      cellGrid[cell.y] = cellGrid[cell.y] || [];
+      cellGrid[cell.y][cell.x] = cell;
+      return cellGrid;
     }, []);
   };
 
@@ -131,14 +147,25 @@ export default function Board(props) {
           moveRight();
           break;
         default:
+          setupInput();
           return;
       }
+      setTimeout(() => {
+        const cell = randomEmptyCell().indexValue;
+        const newArray = [...cellArray];
+        newArray[cell].value = Math.random() > 0.5 ? 2 : 4;
 
-      const cell = randomEmptyCell().indexValue;
-      const newArray = [...cellArray];
-      newArray[cell].value = Math.random() > 0.5 ? 2 : 4;
+        if (
+          !canMoveUp() &&
+          !canMoveDown() &&
+          !canMoveLeft() &&
+          !canMoveRight()
+        ) {
+          setGameOver(true);
+        }
 
-      setupInput();
+        setupInput();
+      }, 300);
     }
   };
 
@@ -170,14 +197,23 @@ export default function Board(props) {
           lastValidCell = moveToCell;
         }
         if (lastValidCell) {
+          const oldX = cell.x,
+            oldY = cell.y;
           if (lastValidCell.value !== 0) {
             // merge and move
-            lastValidCell.value = cell.value + cell.value;
+
+            cell.x = lastValidCell.x;
+            cell.y = lastValidCell.y;
+
+            cell.value += lastValidCell.value;
           } else {
             // move
-            lastValidCell.value = cell.value;
+            cell.x = lastValidCell.x;
+            cell.y = lastValidCell.y;
           }
-          cell.value = 0;
+          lastValidCell.value = 0;
+          lastValidCell.x = oldX;
+          lastValidCell.y = oldY;
         }
       }
     });
@@ -192,19 +228,19 @@ export default function Board(props) {
   };
 
   const canMoveUp = () => {
-    return canMove(cellsByColumn().map((column) => column.reverse()));
-  };
-
-  const canMoveDown = () => {
     return canMove(cellsByColumn());
   };
 
+  const canMoveDown = () => {
+    return canMove(cellsByColumn().map((column) => column.reverse()));
+  };
+
   const canMoveLeft = () => {
-    return canMove(cellsByRow().map((column) => column.reverse()));
+    return canMove(cellsByRow());
   };
 
   const canMoveRight = () => {
-    return canMove(cellsByRow());
+    return canMove(cellsByRow().map((column) => column.reverse()));
   };
 
   const canMove = (cells) => {
@@ -245,6 +281,30 @@ export default function Board(props) {
             )
         )}
       </Box>
+      {gameOver && (
+        <Box
+          backgroundColor="rgba(0,0,0,0.5)"
+          sx={{
+            position: "absolute",
+            width: "100vw",
+            height: "100vh",
+            display: "flex",
+            justifyContent: "center",
+            alignItems: "center",
+            flexDirection: "column",
+          }}
+        >
+          <Typography
+            variant="title"
+            sx={{ fontWeight: "bold", color: "white" }}
+          >
+            Game Over
+          </Typography>
+          <Button variant="contained" color="success" onClick={RestartGame}>
+            Restart
+          </Button>
+        </Box>
+      )}
     </Box>
   );
 }
