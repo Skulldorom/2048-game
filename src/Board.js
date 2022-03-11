@@ -12,6 +12,7 @@ import "./Board.css";
 import RefreshIcon from "@mui/icons-material/Refresh";
 import { QuestionMarkRounded } from "@mui/icons-material";
 import Instructions from "./Instructions";
+import Copyright from "./Copyright";
 
 const gridSize = 4,
   cellSize = "15vmin",
@@ -438,6 +439,7 @@ export default function Board(props) {
           </Button>
         </Box>
       )}
+      <Copyright />
     </Box>
   );
 }
