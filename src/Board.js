@@ -201,7 +201,7 @@ export default function Board(props) {
         }
 
         setupInput();
-      }, 300);
+      }, 100);
     }
   };
 
