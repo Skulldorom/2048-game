@@ -1,19 +1,33 @@
-import { Box, Button, Typography } from "@mui/material";
+import {
+  Box,
+  Button,
+  IconButton,
+  Stack,
+  Tooltip,
+  Typography,
+} from "@mui/material";
 import React from "react";
 import "./Board.css";
 
+import RefreshIcon from "@mui/icons-material/Refresh";
+import { QuestionMarkRounded } from "@mui/icons-material";
+import Instructions from "./Instructions";
+
 const gridSize = 4,
-  cellSize = "20vmin",
+  cellSize = "15vmin",
   cellGap = "2vmin",
-  bRadius = "1vmin";
+  bRadius = "0.5vmin";
 
 export default function Board(props) {
   const [cellArray, setCellArray] = React.useState([]),
     [rows, setRows] = React.useState([]),
     [score, setScore] = React.useState(0),
+    [highScore, setHighScore] = React.useState(0),
+    [tile2048Achieved, setTile2048Achieved] = React.useState(false),
     [gameStart, setGameStart] = React.useState(false),
     [gameOver, setGameOver] = React.useState(false),
-    [allowInput, setAllowInput] = React.useState(true);
+    [allowInput, setAllowInput] = React.useState(false),
+    [helpOpen, setHelpOpen] = React.useState(false);
 
   const board = {
     display: "grid",
@@ -29,13 +43,26 @@ export default function Board(props) {
 
   const cell = {
     backgroundColor: "#AAA",
-    minHeight: "20vmin",
-    minWidth: "20vmin",
+    minHeight: cellSize,
+    minWidth: cellSize,
     display: "flex",
     justifyContent: "center",
     alignItems: "center",
     borderRadius: bRadius,
   };
+
+  //Count Score
+  React.useEffect(() => {
+    let score = 0;
+    cellArray.forEach((cell) => {
+      score += cell.value;
+      if (cell.value === 2048) setTile2048Achieved(true);
+    });
+    setScore(score);
+    if (score > highScore) {
+      setHighScore(score);
+    }
+  }, [cellArray, highScore]);
 
   React.useEffect(() => {
     const rowArray = [];
@@ -56,24 +83,37 @@ export default function Board(props) {
 
   React.useEffect(() => {
     if (gameStart) {
-      const cell1 = randomEmptyCell().indexValue;
-      const newArray = [...cellArray];
-      newArray[cell1].value = Math.random() > 0.5 ? 2 : 4;
-      setCellArray(newArray);
+      createRandomTile(); // create a random tile
+      // wait for cellArray to be set then create another tile
       setTimeout(() => {
-        const cell2 = randomEmptyCell().indexValue;
-        const newArray2 = [...cellArray];
-        newArray2[cell2].value = Math.random() > 0.5 ? 2 : 4;
-        setCellArray(newArray2);
+        createRandomTile();
+        setGameStart(false);
+        setAllowInput(true);
       }, 100);
-
-      setGameStart(false);
     }
-  }, [cellArray, gameStart]);
+  }, [gameStart]); // eslint-disable-line
 
-  const RestartGame = () => {
-    setGameOver(false);
-    setScore(0);
+  const createRandomTile = () => {
+    //Used to find empty cells
+    const getEmptyCells = cellArray.filter((cell) => cell.value === 0);
+
+    //Picks from empty cells
+    const randomEmptyCell = () => {
+      const rNum = Math.floor(Math.random() * getEmptyCells.length);
+      return getEmptyCells[rNum];
+    };
+
+    //Picks a between 2 and 4
+
+    if (getEmptyCells.length > 0) {
+      const emptyCell = randomEmptyCell().indexValue;
+      const newArray = [...cellArray];
+      newArray[emptyCell].value = Math.random() > 0.5 ? 2 : 4;
+      setCellArray(newArray);
+    }
+  };
+
+  const restartGame = () => {
     const valueArray = [];
     for (let i = 0; i < gridSize * gridSize; i++) {
       valueArray.push({
@@ -85,17 +125,13 @@ export default function Board(props) {
     }
     setCellArray(valueArray);
     setGameStart(true);
-  };
-
-  const emptyCells = cellArray.filter((cell) => cell.value === 0);
-
-  const randomEmptyCell = () => {
-    const rNum = Math.floor(Math.random() * emptyCells.length);
-    return emptyCells[rNum];
+    setGameOver(false);
+    setScore(0);
   };
 
   const cellsByColumn = () => {
-    return cellArray.reduce((cellGrid, cell) => {
+    const array = cellArray;
+    return array.reduce((cellGrid, cell) => {
       cellGrid[cell.x] = cellGrid[cell.x] || [];
       cellGrid[cell.x][cell.y] = cell;
       return cellGrid;
@@ -103,7 +139,8 @@ export default function Board(props) {
   };
 
   const cellsByRow = () => {
-    return cellArray.reduce((cellGrid, cell) => {
+    const array = cellArray;
+    return array.reduce((cellGrid, cell) => {
       cellGrid[cell.y] = cellGrid[cell.y] || [];
       cellGrid[cell.y][cell.x] = cell;
       return cellGrid;
@@ -151,9 +188,7 @@ export default function Board(props) {
           return;
       }
       setTimeout(() => {
-        const cell = randomEmptyCell().indexValue;
-        const newArray = [...cellArray];
-        newArray[cell].value = Math.random() > 0.5 ? 2 : 4;
+        createRandomTile();
 
         if (
           !canMoveUp() &&
@@ -170,50 +205,59 @@ export default function Board(props) {
   };
 
   const moveUp = () => {
-    slideTiles(cellsByColumn().map((column) => column.reverse()));
+    do slideTile(cellsByColumn());
+    while (canOnlyMoveUp());
   };
 
   const moveDown = () => {
-    slideTiles(cellsByColumn());
+    do slideTile(cellsByColumn().map((column) => [...column].reverse()));
+    while (canOnlyMoveDown());
   };
 
   const moveLeft = () => {
-    slideTiles(cellsByRow().map((column) => column.reverse()));
+    do slideTile(cellsByRow());
+    while (canOnlyMoveLeft());
   };
 
   const moveRight = () => {
-    slideTiles(cellsByRow());
+    do slideTile(cellsByRow().map((row) => [...row].reverse()));
+    while (canOnlyMoveRight());
   };
 
-  const slideTiles = (cells) => {
+  const slideTile = (cells) => {
     cells.forEach((group) => {
-      for (let i = 0; i < group.length; i++) {
+      for (let i = 1; i < group.length; i++) {
         const cell = group[i];
         if (cell.value === 0) continue;
         let lastValidCell;
-        for (let j = i + 1; j < group.length; j++) {
+        for (let j = i - 1; j >= 0; j--) {
           const moveToCell = group[j];
-          if (!canAccept(moveToCell, cell)) break;
+          if (!canAccept(cell, moveToCell)) break;
           lastValidCell = moveToCell;
         }
+
         if (lastValidCell) {
-          const oldX = cell.x,
-            oldY = cell.y;
-          if (lastValidCell.value !== 0) {
-            // merge and move
+          const OldCellX = cell.x,
+            OldCellY = cell.y;
 
+          if (lastValidCell.value === 0) {
+            // If the cell is empty, move the tile to the empty cell
             cell.x = lastValidCell.x;
             cell.y = lastValidCell.y;
 
-            cell.value += lastValidCell.value;
+            lastValidCell.x = OldCellX;
+            lastValidCell.y = OldCellY;
           } else {
-            // move
+            // If the cell is not empty, combine the tiles
             cell.x = lastValidCell.x;
             cell.y = lastValidCell.y;
+
+            lastValidCell.x = OldCellX;
+            lastValidCell.y = OldCellY;
+
+            cell.value = cell.value * 2;
+            lastValidCell.value = 0;
           }
-          lastValidCell.value = 0;
-          lastValidCell.x = oldX;
-          lastValidCell.y = oldY;
         }
       }
     });
@@ -227,12 +271,16 @@ export default function Board(props) {
     setCellArray(final);
   };
 
+  const canAccept = (cell, cellToMoveTo) => {
+    return cellToMoveTo.value === 0 || cell.value === cellToMoveTo.value;
+  };
+
   const canMoveUp = () => {
     return canMove(cellsByColumn());
   };
 
   const canMoveDown = () => {
-    return canMove(cellsByColumn().map((column) => column.reverse()));
+    return canMove(cellsByColumn().map((column) => [...column].reverse()));
   };
 
   const canMoveLeft = () => {
@@ -240,7 +288,7 @@ export default function Board(props) {
   };
 
   const canMoveRight = () => {
-    return canMove(cellsByRow().map((column) => column.reverse()));
+    return canMove(cellsByRow().map((row) => [...row].reverse()));
   };
 
   const canMove = (cells) => {
@@ -249,13 +297,40 @@ export default function Board(props) {
         if (index === 0) return false;
         if (cell.value === 0) return false;
         const moveToCell = group[index - 1];
-        return canAccept(moveToCell, cell);
+        return canAccept(cell, moveToCell);
       });
     });
   };
 
-  const canAccept = (cell, otherCell) => {
-    return cell.value === 0 || cell.value === otherCell.value;
+  const canOnlyMoveUp = () => {
+    return canOnlyMove(cellsByColumn());
+  };
+
+  const canOnlyMoveDown = () => {
+    return canOnlyMove(cellsByColumn().map((column) => [...column].reverse()));
+  };
+
+  const canOnlyMoveLeft = () => {
+    return canOnlyMove(cellsByRow());
+  };
+
+  const canOnlyMoveRight = () => {
+    return canOnlyMove(cellsByRow().map((row) => [...row].reverse()));
+  };
+
+  const canOnlyMove = (cells) => {
+    return cells.some((group) => {
+      return group.some((cell, index) => {
+        if (index === 0) return false;
+        if (cell.value === 0) return false;
+        const moveToCell = group[index - 1];
+        return canOnlyAccept(moveToCell);
+      });
+    });
+  };
+
+  const canOnlyAccept = (cellToMoveTo) => {
+    return cellToMoveTo.value === 0;
   };
 
   return (
@@ -272,15 +347,68 @@ export default function Board(props) {
       onKeyDown={handleKeyDown}
       tabIndex={-1}
     >
-      <Box sx={board}>
-        {rows}
-        {cellArray.map(
-          (cell, index) =>
-            cell.value !== 0 && (
-              <Tile x={cell.x} y={cell.y} value={cell.value} key={index} />
-            )
-        )}
-      </Box>
+      <Stack spacing={1}>
+        <Stack direction="row" justifyContent="space-between">
+          <Typography variant="h2" sx={{ fontWeight: "bold", color: "white" }}>
+            2048{" "}
+            <Tooltip title="How to play?">
+              <IconButton color="inherit" onClick={() => setHelpOpen(true)}>
+                <QuestionMarkRounded />
+              </IconButton>
+            </Tooltip>
+          </Typography>
+          <Instructions setClose={() => setHelpOpen(false)} open={helpOpen} />
+          <Stack spacing={1}>
+            <Typography variant="h4" sx={{ color: "white" }}>
+              Score: {score}
+            </Typography>
+            <Typography variant="h5" sx={{ color: "white" }}>
+              High Score: {highScore}
+            </Typography>
+            <Button variant="contained" color="inherit" onClick={restartGame}>
+              New Game
+            </Button>
+          </Stack>
+        </Stack>
+
+        <Box sx={board}>
+          {rows}
+          {cellArray.map(
+            (cell, index) =>
+              cell.value !== 0 && (
+                <Tile x={cell.x} y={cell.y} value={cell.value} key={index} />
+              )
+          )}
+        </Box>
+      </Stack>
+      {tile2048Achieved && (
+        <Box
+          backgroundColor="rgba(0,0,0,0.5)"
+          sx={{
+            position: "absolute",
+            width: "100vw",
+            height: "100vh",
+            display: "flex",
+            justifyContent: "center",
+            alignItems: "center",
+            flexDirection: "column",
+          }}
+        >
+          <Typography
+            variant="title"
+            sx={{ fontWeight: "bold", color: "white" }}
+          >
+            You have gotten the 2048 tile!
+          </Typography>
+          <Button
+            variant="contained"
+            color="success"
+            onClick={() => setTile2048Achieved(false)}
+          >
+            Continue
+          </Button>
+        </Box>
+      )}
       {gameOver && (
         <Box
           backgroundColor="rgba(0,0,0,0.5)"
@@ -300,7 +428,12 @@ export default function Board(props) {
           >
             Game Over
           </Typography>
-          <Button variant="contained" color="success" onClick={RestartGame}>
+          <Button
+            variant="contained"
+            color="success"
+            onClick={restartGame}
+            startIcon={<RefreshIcon />}
+          >
             Restart
           </Button>
         </Box>
