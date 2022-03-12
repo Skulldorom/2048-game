@@ -223,6 +223,7 @@ export default function Board(props) {
 
   const handlers = useSwipeable({
     onSwiped: (e) => handleSwipe(e),
+    preventDefaultTouchmoveEvent: true,
   });
 
   const handleSwipe = (e) => {
