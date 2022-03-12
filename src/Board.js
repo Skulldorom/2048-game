@@ -20,7 +20,7 @@ const gridSize = 4,
   cellGap = "2vmin",
   bRadius = "0.5vmin";
 
-export default function Board(props) {
+export default function Board() {
   const [cellArray, setCellArray] = React.useState([]),
     [rows, setRows] = React.useState([]),
     [score, setScore] = React.useState(0),
