@@ -1,3 +1,8 @@
+# 2048 Game Clone
+
+This a playable version of 2048 using react-web.
+
+
 # Getting Started with Create React App
 
 This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
