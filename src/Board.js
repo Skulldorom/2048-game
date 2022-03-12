@@ -38,6 +38,7 @@ export default function Board(props) {
     justifyContent: "center",
     alignItems: "center",
     height: "100vh",
+    overflowX: "hidden",
     margin: 0,
     fontSize: "6.5vmin",
   };
