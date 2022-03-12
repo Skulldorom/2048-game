@@ -13,6 +13,7 @@ import RefreshIcon from "@mui/icons-material/Refresh";
 import { QuestionMarkRounded } from "@mui/icons-material";
 import Instructions from "./Instructions";
 import Copyright from "./Copyright";
+import { useSwipeable } from "react-swipeable";
 
 const gridSize = 4,
   cellSize = "15vmin",
@@ -25,10 +26,21 @@ export default function Board(props) {
     [score, setScore] = React.useState(0),
     [highScore, setHighScore] = React.useState(0),
     [tile2048Achieved, setTile2048Achieved] = React.useState(false),
+    [historyTileAchieved, setHistoryTileAchieved] = React.useState(false),
     [gameStart, setGameStart] = React.useState(false),
     [gameOver, setGameOver] = React.useState(false),
     [allowInput, setAllowInput] = React.useState(false),
     [helpOpen, setHelpOpen] = React.useState(false);
+
+  const MainAreaStyle = {
+    background: "#333",
+    display: "flex",
+    justifyContent: "center",
+    alignItems: "center",
+    height: "100vh",
+    margin: 0,
+    fontSize: "6.5vmin",
+  };
 
   const board = {
     display: "grid",
@@ -40,6 +52,7 @@ export default function Board(props) {
     borderRadius: bRadius,
     padding: cellGap,
     position: "relative",
+    width: "fit-content",
   };
 
   const cell = {
@@ -57,13 +70,16 @@ export default function Board(props) {
     let score = 0;
     cellArray.forEach((cell) => {
       score += cell.value;
-      if (cell.value === 2048) setTile2048Achieved(true);
+      if (cell.value === 2048 && !historyTileAchieved) {
+        setTile2048Achieved(true);
+        setHistoryTileAchieved(true);
+      }
     });
     setScore(score);
     if (score > highScore) {
       setHighScore(score);
     }
-  }, [cellArray, highScore]);
+  }, [cellArray, highScore, historyTileAchieved]);
 
   React.useEffect(() => {
     const rowArray = [];
@@ -178,6 +194,63 @@ export default function Board(props) {
           moveLeft();
           break;
         case "ArrowRight":
+          if (!canMoveRight()) {
+            setupInput();
+            return;
+          }
+          moveRight();
+          break;
+        default:
+          setupInput();
+          return;
+      }
+      setTimeout(() => {
+        createRandomTile();
+
+        if (
+          !canMoveUp() &&
+          !canMoveDown() &&
+          !canMoveLeft() &&
+          !canMoveRight()
+        ) {
+          setGameOver(true);
+        }
+
+        setupInput();
+      }, 100);
+    }
+  };
+
+  const handlers = useSwipeable({
+    onSwiped: (e) => handleSwipe(e),
+  });
+
+  const handleSwipe = (e) => {
+    if (allowInput) {
+      setAllowInput(false);
+      switch (e.dir) {
+        case "Up":
+          if (!canMoveUp()) {
+            setupInput();
+            return;
+          }
+          moveUp();
+          break;
+        case "Down":
+          if (!canMoveDown()) {
+            setupInput();
+            return;
+          }
+          moveDown();
+          break;
+        case "Left":
+          if (!canMoveLeft()) {
+            setupInput();
+            return;
+          }
+          moveLeft();
+          break;
+        case "Right":
           if (!canMoveRight()) {
             setupInput();
             return;
@@ -335,23 +408,15 @@ export default function Board(props) {
   };
 
   return (
-    <Box
-      sx={{
-        background: "#333",
-        display: "flex",
-        justifyContent: "center",
-        alignItems: "center",
-        height: "100vh",
-        margin: 0,
-        fontSize: "7.5vmin",
-      }}
-      onKeyDown={handleKeyDown}
-      tabIndex={-1}
-    >
-      <Stack spacing={1}>
-        <Stack direction="row" justifyContent="space-between">
+    <Box sx={MainAreaStyle} onKeyDown={handleKeyDown} tabIndex={-1}>
+      <Stack spacing={1} alignItems="center">
+        <Stack
+          direction="row"
+          justifyContent="space-between"
+          sx={{ width: "100%" }}
+        >
           <Typography variant="h2" sx={{ fontWeight: "bold", color: "white" }}>
-            2048{" "}
+            2048
             <Tooltip title="How to play?">
               <IconButton color="inherit" onClick={() => setHelpOpen(true)}>
                 <QuestionMarkRounded />
@@ -372,7 +437,7 @@ export default function Board(props) {
           </Stack>
         </Stack>
 
-        <Box sx={board}>
+        <Box sx={board} {...handlers}>
           {rows}
           {cellArray.map(
             (cell, index) =>
@@ -446,7 +511,7 @@ export default function Board(props) {
 
 function Tile({ x, y, value }) {
   const power = Math.log2(value);
-  const backgroundLightness = 100 - power * 9;
+  const backgroundLightness = 100 - power * 7;
   const textLightness = backgroundLightness <= 50 ? 90 : 10;
 
   const tile = {
